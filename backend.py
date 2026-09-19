@@ -23,25 +23,52 @@ ollama_client = ollama.Client(host=OLLAMA_BASE_URL)
 
 def call_llm_chat(messages: List[Dict[str, str]], temperature: float = 0.0) -> str:
     """Unified LLM caller supporting both free cloud Groq API and local Ollama."""
-    if GROQ_API_KEY:
+    api_key = (GROQ_API_KEY or "").strip().strip('"').strip("'")
+    if api_key:
         import requests
         headers = {
-            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
-        payload = {
-            "model": GROQ_MODEL,
-            "messages": messages,
-            "temperature": temperature,
-        }
-        resp = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=25,
-        )
-        resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"].strip()
+        # Fallback models in case a specific Groq model name is deprecated or 404s
+        models_to_try = list(dict.fromkeys([
+            GROQ_MODEL.strip().strip('"').strip("'"),
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "gemma2-9b-it",
+        ]))
+
+        last_err = ""
+        for model_name in models_to_try:
+            if not model_name:
+                continue
+            payload = {
+                "model": model_name,
+                "messages": messages,
+                "temperature": temperature,
+            }
+            try:
+                resp = requests.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers=headers,
+                    json=payload,
+                    timeout=25,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return data["choices"][0]["message"]["content"].strip()
+                
+                err_msg = resp.text
+                try:
+                    err_json = resp.json()
+                    err_msg = err_json.get("error", {}).get("message", resp.text)
+                except Exception:
+                    pass
+                last_err = f"HTTP {resp.status_code} ({model_name}): {err_msg}"
+            except Exception as ex:
+                last_err = str(ex)
+
+        raise Exception(f"Groq API Error: {last_err}")
 
     resp = ollama_client.chat(
         model=OLLAMA_MODEL,
