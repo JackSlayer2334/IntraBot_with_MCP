@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>INTRABOT — Enterprise AI Workplace Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --primary-light: #eff6ff;
+      --accent: #4f46e5;
+      --bg: #f1f5f9;
+      --card-bg: #ffffff;
+      --border-color: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --bot-bg: #f8fafc;
+      --user-bg: linear-gradient(135deg, #2563eb, #1d4ed8);
+      --user-text: #ffffff;
+      --shadow-soft: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+      --shadow-msg: 0 2px 5px rgba(0, 0, 0, 0.03);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #eef2f6 0%, #e2e8f0 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+      color: var(--text-main);
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 960px;
+      height: 92vh;
+      max-height: 880px;
+      background: var(--card-bg);
+      border-radius: 22px;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+    }
+
+    /* Top Brand Header */
+    header {
+      padding: 16px 24px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 22px;
+      font-weight: 800;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
+    }
+
+    .brand-titles {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-name {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: #0f172a;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #1e3a8a, #2563eb);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+      text-transform: uppercase;
+    }
+
+    .brand-subtitle {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Live Status Badges */
+    .header-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .status-pill {
+      font-size: 0.74rem;
+      font-weight: 600;
+      padding: 5px 11px;
+      border-radius: 20px;
+      background: #f8fafc;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 6px #22c55e;
+      animation: pulse-dot 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Quick Prompt Chips */
+    .quick-chips-bar {
+      padding: 10px 24px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .quick-chips-bar::-webkit-scrollbar {
+      height: 4px;
+    }
+    .quick-chips-bar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+
+    .chips-label {
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-right: 4px;
+      flex-shrink: 0;
+    }
+
+    .prompt-chip {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      padding: 6px 13px;
+      border-radius: 18px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #334155;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .prompt-chip:hover {
+      background: var(--primary-light);
+      border-color: #93c5fd;
+      color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    /* Message Stream */
+    .chat-messages {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      background: #ffffff;
+    }
+
+    /* Welcome Hero Card */
+    .welcome-hero {
+      background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+      border: 1px solid #bfdbfe;
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.05);
+    }
+
+    .welcome-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .welcome-header h2 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #1e3a8a;
+      letter-spacing: 0.3px;
+    }
+
+    .welcome-hero p {
+      font-size: 0.88rem;
+      color: #334155;
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+
+    .capabilities-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+    }
+
+    .cap-item {
+      background: #ffffff;
+      border: 1px solid #dbeafe;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      color: #1e40af;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Message Rows */
+    .msg-row {
+      display: flex;
+      gap: 12px;
+      max-width: 84%;
+    }
+
+    .msg-row.user {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .msg-row.bot {
+      align-self: flex-start;
+    }
+
+    .msg-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .msg-avatar.user {
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+
+    .msg-avatar.bot {
+      background: linear-gradient(135deg, #2563eb, #4f46e5);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    }
+
+    .msg-body-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .msg-sender-name {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #64748b;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      padding: 0 4px;
+    }
+
+    .msg-row.user .msg-sender-name {
+      text-align: right;
+    }
+
+    .msg-bubble {
+      padding: 14px 18px;
+      border-radius: 16px;
+      font-size: 0.92rem;
+      line-height: 1.65;
+      word-wrap: break-word;
+      box-shadow: var(--shadow-msg);
+    }
+
+    .msg-row.user .msg-bubble {
+      background: var(--user-bg);
+      color: var(--user-text);
+      border-bottom-right-radius: 4px;
+    }
+
+    .msg-row.bot .msg-bubble {
+      background: var(--bot-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      border-bottom-left-radius: 4px;
+    }
+
+    .msg-footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      padding: 0 4px;
+    }
+
+    .msg-row.user .msg-footer {
+      justify-content: flex-end;
+    }
+
+    .tool-badge {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: #334155;
+      font-family: monospace;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .copy-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: #94a3b8;
+      font-size: 0.72rem;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .copy-btn:hover {
+      color: var(--primary);
+      background: #f1f5f9;
+    }
+
+    /* Markdown inside Messages */
+    .msg-bubble h2, .msg-bubble h3 {
+      margin: 10px 0 6px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .msg-bubble h2 { font-size: 1.08rem; }
+    .msg-bubble h3 { font-size: 0.98rem; }
+    .msg-bubble p { margin: 6px 0; }
+    .msg-bubble ul { margin: 8px 0; padding-left: 20px; }
+    .msg-bubble li { margin: 4px 0; }
+    .msg-bubble strong { font-weight: 700; color: #0f172a; }
+    .msg-bubble code {
+      background: #e2e8f0;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      font-family: monospace;
+    }
+
+    /* Typing Indicator */
+    .typing-box {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px;
+      background: #f8fafc;
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      width: fit-content;
+      font-size: 0.82rem;
+      color: #475569;
+      font-weight: 500;
+    }
+
+    .dots-wave {
+      display: flex;
+      gap: 4px;
+    }
+
+    .dot-w {
+      width: 6px;
+      height: 6px;
+      background: #2563eb;
+      border-radius: 50%;
+      animation: wave 1.4s infinite ease-in-out;
+    }
+    .dot-w:nth-child(2) { animation-delay: 0.2s; }
+    .dot-w:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes wave {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40% { transform: scale(1.1); opacity: 1; }
+    }
+
+    /* Input Footer */
+    footer {
+      padding: 16px 24px;
+      background: #ffffff;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .clear-chat-btn {
+      background: #f8fafc;
+      border: 1px solid var(--border-color);
+      color: #64748b;
+      border-radius: 12px;
+      padding: 11px 16px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .clear-chat-btn:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+      border-color: #cbd5e1;
+    }
+
+    .input-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      background: #f8fafc;
+      border: 1.5px solid var(--border-color);
+      border-radius: 14px;
+      padding: 4px 6px 4px 18px;
+      transition: all 0.2s ease;
+    }
+
+    .input-wrapper:focus-within {
+      border-color: var(--primary);
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    input#user-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      outline: none;
+      font-family: inherit;
+      font-size: 0.94rem;
+      color: var(--text-main);
+      padding: 10px 0;
+    }
+    input#user-input::placeholder {
+      color: #94a3b8;
+    }
+
+    .send-action-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+    .send-action-btn:hover {
+      background: var(--primary-dark);
+      transform: scale(1.03);
+    }
+    .send-action-btn svg {
+      width: 19px;
+      height: 19px;
+      fill: currentColor;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header>
+      <div class="brand-section">
+        <div class="brand-logo">⚡</div>
+        <div class="brand-titles">
+          <div class="brand-title-row">
+            <span class="brand-name">INTRABOT</span>
+            <span class="brand-badge">Enterprise Copilot</span>
+          </div>
+          <span class="brand-subtitle">Decoupled FastMCP Tools + Locally-Hosted Ollama</span>
+        </div>
+      </div>
+
+      <div class="header-status">
+        <div class="status-pill">
+          <span class="status-dot"></span>
+          <span id="sys-status">Online</span>
+        </div>
+        <div class="status-pill" title="Active Local LLM">
+          🤖 <span id="model-badge">gemma2:2b</span>
+        </div>
+        <div class="status-pill" title="Decoupled Database Backend">
+          🗄 <span id="db-badge">SQLITE</span>
+        </div>
+        <div class="status-pill" title="Discovered MCP Tools">
+          ⚡ <span id="mcp-badge">9 MCP Tools</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Suggestion Chips Bar -->
+    <div class="quick-chips-bar">
+      <span class="chips-label">Quick Prompts:</span>
+      <button class="prompt-chip" onclick="submitPrompt('what is Rahul leave status')">
+        👤 Rahul's Leave Status
+      </button>
+      <button class="prompt-chip" onclick="submitPrompt('what is Sneha leave status')">
+        👩‍💼 Sneha (Product Lead)
+      </button>
+      <button class="prompt-chip" onclick="submitPrompt('list employees')">
+        📋 12 Employees Directory
+      </button>
+      <button class="prompt-chip" onclick="submitPrompt('what is company leave policy')">
+        📜 Leave Policy
+      </button>
+      <button class="prompt-chip" onclick="submitPrompt('tell me about equipment policy')">
+        💻 Equipment Policy
+      </button>
+      <button class="prompt-chip" onclick="submitPrompt('what is WFH policy')">
+        🏡 Hybrid / WFH Policy
+      </button>
+      <button class="prompt-chip" onclick="submitPrompt('who is marketing department contact')">
+        📢 Marketing Contact
+      </button>
+      <button class="prompt-chip" onclick="submitPrompt('what is temp in srinagar today')">
+        🌤 Srinagar Weather
+      </button>
+    </div>
+
+    <!-- Chat Messages Stream -->
+    <div class="chat-messages" id="messages-container">
+      <div class="welcome-hero">
+        <div class="welcome-header">
+          <h2>⚡ INTRABOT Enterprise Assistant</h2>
+        </div>
+        <p>
+          Welcome to <strong>INTRABOT</strong>. I am powered by a local <strong>Ollama LLM</strong> connected to dynamic 
+          <strong>Model Context Protocol (MCP)</strong> tools with decoupled SQLite & MySQL storage. Ask me about employee status, 
+          leave balances, company policies, department contacts, or live external data!
+        </p>
+        <div class="capabilities-grid">
+          <div class="cap-item">👥 Employee Status & Leaves</div>
+          <div class="cap-item">📜 7 Company Policies</div>
+          <div class="cap-item">🏢 8 Department Contacts</div>
+          <div class="cap-item">🌤 Real-time Weather & Web Scrape</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Typing Indicator -->
+    <div style="padding: 0 24px 8px;">
+      <div class="typing-box" id="typing-indicator">
+        <div class="dots-wave">
+          <div class="dot-w"></div>
+          <div class="dot-w"></div>
+          <div class="dot-w"></div>
+        </div>
+        <span><strong>INTRABOT</strong> is orchestrating tools & synthesizing...</span>
+      </div>
+    </div>
+
+    <!-- Input Footer -->
+    <footer>
+      <button class="clear-chat-btn" onclick="clearConversation()" title="Reset chat history">
+        Clear Chat
+      </button>
+      <div class="input-wrapper">
+        <input id="user-input" placeholder="Ask INTRABOT anything (e.g., 'What is Rahul's leave status?' or 'What is equipment policy?')..." autocomplete="off" />
+        <button class="send-action-btn" onclick="sendMessage()" title="Send Message (Enter)">
+          <svg viewBox="0 0 24 24">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
+      </div>
+    </footer>
+  </div>
+
+<script>
+// Load Live System Status from /api/info
+async function initSystemInfo() {
+  try {
+    const res = await fetch("/api/info");
+    if (!res.ok) return;
+    const data = await res.json();
+    document.getElementById("model-badge").textContent = data.model;
+    document.getElementById("db-badge").textContent = data.db_backend;
+    if (data.tools_count) {
+      document.getElementById("mcp-badge").textContent = `${data.tools_count} MCP Tools`;
+    }
+  } catch (err) {
+    console.warn("Could not fetch /api/info:", err);
+  }
+}
+initSystemInfo();
+
+// Handle Enter Key
+document.getElementById("user-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    sendMessage();
+  }
+});
+
+function submitPrompt(text) {
+  const input = document.getElementById("user-input");
+  input.value = text;
+  sendMessage();
+}
+
+function clearConversation() {
+  const container = document.getElementById("messages-container");
+  container.innerHTML = `
+    <div class="welcome-hero">
+      <div class="welcome-header">
+        <h2>⚡ INTRABOT Enterprise Assistant</h2>
+      </div>
+      <p>
+        Welcome to <strong>INTRABOT</strong>. I am powered by a local <strong>Ollama LLM</strong> connected to dynamic 
+        <strong>Model Context Protocol (MCP)</strong> tools with decoupled SQLite & MySQL storage. Ask me about employee status, 
+        leave balances, company policies, department contacts, or live external data!
+      </p>
+      <div class="capabilities-grid">
+        <div class="cap-item">👥 Employee Status & Leaves</div>
+        <div class="cap-item">📜 7 Company Policies</div>
+        <div class="cap-item">🏢 8 Department Contacts</div>
+        <div class="cap-item">🌤 Real-time Weather & Web Scrape</div>
+      </div>
+    </div>
+  `;
+}
+
+async function sendMessage() {
+  const input = document.getElementById("user-input");
+  const message = input.value.trim();
+  if (!message) return;
+
+  appendMessage("user", message);
+  input.value = "";
+
+  setTyping(true);
+
+  try {
+    const res = await fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message })
+    });
+
+    const data = await res.json();
+    setTyping(false);
+    appendMessage("bot", data.reply, data.tool_used);
+  } catch (err) {
+    setTyping(false);
+    appendMessage("bot", `⚠️ Could not reach INTRABOT server: ${err.message}`);
+  }
+}
+
+function setTyping(show) {
+  const el = document.getElementById("typing-indicator");
+  el.style.display = show ? "flex" : "none";
+  if (show) {
+    const container = document.getElementById("messages-container");
+    container.scrollTop = container.scrollHeight;
+  }
+}
+
+function appendMessage(sender, text, toolUsed = null) {
+  const container = document.getElementById("messages-container");
+  const row = document.createElement("div");
+  row.classList.add("msg-row", sender);
+
+  const avatar = document.createElement("div");
+  avatar.classList.add("msg-avatar", sender);
+  avatar.textContent = sender === "user" ? "👤" : "⚡";
+
+  const wrapper = document.createElement("div");
+  wrapper.classList.add("msg-body-wrapper");
+
+  const senderName = document.createElement("div");
+  senderName.classList.add("msg-sender-name");
+  senderName.textContent = sender === "user" ? "You" : "INTRABOT";
+
+  const bubble = document.createElement("div");
+  bubble.classList.add("msg-bubble");
+
+  if (sender === "bot") {
+    bubble.innerHTML = parseMarkdown(text);
+  } else {
+    bubble.textContent = text;
+  }
+
+  const footer = document.createElement("div");
+  footer.classList.add("msg-footer");
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  if (sender === "bot") {
+    let toolHtml = toolUsed ? `<span class="tool-badge">⚡ ${escapeHtml(toolUsed)}</span>` : `<span class="tool-badge">🤖 Direct LLM</span>`;
+    footer.innerHTML = `${toolHtml} <span>${time}</span> <button class="copy-btn" onclick="copyText(this)">Copy</button>`;
+  } else {
+    footer.innerHTML = `<span>${time}</span>`;
+  }
+
+  wrapper.appendChild(senderName);
+  wrapper.appendChild(bubble);
+  wrapper.appendChild(footer);
+
+  row.appendChild(avatar);
+  row.appendChild(wrapper);
+
+  container.appendChild(row);
+  container.scrollTop = container.scrollHeight;
+}
+
+function copyText(btn) {
+  const bubble = btn.closest(".msg-body-wrapper").querySelector(".msg-bubble");
+  navigator.clipboard.writeText(bubble.innerText).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => { btn.textContent = orig; }, 1800);
+  });
+}
+
+function parseMarkdown(text) {
+  if (!text) return "";
+  const lines = text.split(/\r?\n/);
+  const html = [];
+  let listOpen = false;
+  let paragraph = [];
+
+  function flushParagraph() {
+    if (!paragraph.length) return;
+    html.push(`<p>${formatInline(paragraph.join(" "))}</p>`);
+    paragraph = [];
+  }
+
+  function closeList() {
+    if (!listOpen) return;
+    html.push("</ul>");
+    listOpen = false;
+  }
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      flushParagraph();
+      closeList();
+      continue;
+    }
+
+    if (trimmed.startsWith("### ")) {
+      flushParagraph();
+      closeList();
+      html.push(`<h3>${formatInline(trimmed.slice(4))}</h3>`);
+      continue;
+    }
+
+    if (trimmed.startsWith("## ")) {
+      flushParagraph();
+      closeList();
+      html.push(`<h2>${formatInline(trimmed.slice(3))}</h2>`);
+      continue;
+    }
+
+    if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
+      flushParagraph();
+      if (!listOpen) {
+        html.push("<ul>");
+        listOpen = true;
+      }
+      html.push(`<li>${formatInline(trimmed.slice(2))}</li>`);
+      continue;
+    }
+
+    closeList();
+    paragraph.push(trimmed);
+  }
+
+  flushParagraph();
+  closeList();
+  return html.join("");
+}
+
+function formatInline(text) {
+  let res = escapeHtml(text);
+  res = res.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  res = res.replace(/`([^`]+)`/g, "<code>$1</code>");
+  return res;
+}
+
+function escapeHtml(text) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+</script>
+</body>
+</html>

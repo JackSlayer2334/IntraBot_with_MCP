@@ -1,0 +1,11 @@
+services:
+  intrabot:
+    build: .
+    environment:
+      OLLAMA_MODEL: gemma2:2b
+      OLLAMA_BASE_URL: http://localhost:11434
+      OLLAMA_ENABLE_TOOLS: "false"
+      MCP_SERVER_URL: http://127.0.0.1:8080/mcp
+      MCP_PORT: "8080"
+      # WEATHER_API_KEY: add-your-key-here
+    network_mode: host
