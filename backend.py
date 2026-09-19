@@ -111,6 +111,13 @@ def call_llm_chat(messages: List[Dict[str, str]], temperature: float = 0.0) -> s
     return resp.get("message", {}).get("content", "").strip()
 
 
+# In-memory conversational context for multi-turn follow-up queries
+CONVERSATION_CONTEXT: Dict[str, Optional[str]] = {
+    "last_employee": None,
+    "last_department": None,
+    "last_policy": None,
+}
+
 app = FastAPI(title="IntraBot Enterprise API", version="2.0.0")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -274,16 +281,23 @@ def fallback_heuristic_tool_matching(message: str) -> Optional[Tuple[str, dict]]
         match = re.search(r"\b(?:for|of|is)\s+([a-zA-Z]+)", lower)
         if match:
             candidate = match.group(1).title()
-            if candidate.lower() not in {"the", "a", "an", "our", "company", "current", "your", "my", "our", "team"}:
+            if candidate.lower() not in {"the", "a", "an", "our", "company", "current", "your", "my", "our", "team", "her", "his", "their", "she", "he"}:
                 detected_name = candidate
 
+    # Context Resolution: If user is asking a follow-up ("how much leave are left?", "who is the manager?", "is she available?")
+    if not detected_name and CONVERSATION_CONTEXT.get("last_employee"):
+        if any(w in lower for w in ["leave", "balance", "left", "remaining", "manager", "approver", "status", "available", "she", "he", "her", "his"]):
+            detected_name = CONVERSATION_CONTEXT["last_employee"]
+
     if detected_name:
-        if "leave" in lower or "balance" in lower:
+        CONVERSATION_CONTEXT["last_employee"] = detected_name
+        if any(w in lower for w in ["leave", "balance", "left", "remaining"]):
             return "get_employee_leave_status", {"name": detected_name}
         if any(w in lower for w in ["manager", "approver", "reporting", "reports to"]):
             return "get_approver", {"name": detected_name}
         if any(w in lower for w in ["status", "available", "availability"]):
             return "get_employee_status", {"name": detected_name}
+        return "get_employee_leave_status", {"name": detected_name}
 
     return None
 
@@ -560,6 +574,25 @@ async def chat_endpoint(data: dict):
                     "How can I help you today?"
                 ),
                 "stage": "fallback_dialogue",
+            }
+        elif "llm" in lower:
+            return {
+                "reply": (
+                    "**An LLM (Large Language Model)** is an advanced AI system trained on vast amounts of textual data to understand, reason, and generate natural human language.\n\n"
+                    "Key concepts:\n"
+                    "* **Transformer Architecture**: Uses self-attention layers to process contextual relationships between words.\n"
+                    "* **Capabilities**: Powers conversational assistants, code generation, summarization, and reasoning.\n"
+                    "* **In IntraBot**: INTRABOT connects an LLM with **FastMCP** tools to perform two-pass verified workplace operations!"
+                ),
+                "stage": "direct_knowledge",
+            }
+        elif any(w in lower for w in ["what is ai", "artificial intelligence"]):
+            return {
+                "reply": (
+                    "**Artificial Intelligence (AI)** refers to computer systems designed to perform tasks that traditionally require human intelligence — such as visual perception, decision-making, and natural language understanding.\n\n"
+                    "In enterprise workflows, AI assistants like **INTRABOT** automate routine inquiries such as leave tracking, policy lookup, and team directories!"
+                ),
+                "stage": "direct_knowledge",
             }
         elif any(c in lower for c in ["help", "what can you do", "who are you", "features", "capabilities"]):
             return {
