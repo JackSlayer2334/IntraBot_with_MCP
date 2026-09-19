@@ -20,7 +20,38 @@ GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 ollama_client = ollama.Client(host=OLLAMA_BASE_URL)
 
-DECOMMISSIONED_GROQ_MODELS = {"gemma2-9b-it", "llama3-8b-8192", "llama3-70b-8192", "gemma-7b-it"}
+CACHED_GROQ_MODEL: Optional[str] = None
+
+def get_available_groq_model(api_key: str) -> str:
+    """Dynamically discover which models are active and accessible with this Groq key."""
+    global CACHED_GROQ_MODEL
+    if CACHED_GROQ_MODEL:
+        return CACHED_GROQ_MODEL
+
+    try:
+        import requests
+        resp = requests.get(
+            "https://api.groq.com/openai/v1/models",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            data = resp.json().get("data", [])
+            model_ids = [m.get("id") for m in data if m.get("id") and "whisper" not in m.get("id", "").lower()]
+            # Look for top models in order of preference
+            for pref in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "llama-3.2-3b-preview", "mixtral-8x7b-32768"]:
+                if pref in model_ids:
+                    CACHED_GROQ_MODEL = pref
+                    return pref
+            if model_ids:
+                CACHED_GROQ_MODEL = model_ids[0]
+                return CACHED_GROQ_MODEL
+    except Exception as e:
+        print(f"[Groq Model Discovery Notice] {e}")
+
+    # Fallback to standard active model
+    return "llama-3.3-70b-versatile"
+
 
 def call_llm_chat(messages: List[Dict[str, str]], temperature: float = 0.0) -> str:
     """Unified LLM caller supporting both free cloud Groq API and local Ollama."""
@@ -31,20 +62,17 @@ def call_llm_chat(messages: List[Dict[str, str]], temperature: float = 0.0) -> s
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
-        requested_model = GROQ_MODEL.strip().strip('"').strip("'")
-        if requested_model in DECOMMISSIONED_GROQ_MODELS:
-            requested_model = "llama-3.3-70b-versatile"
+        active_model = get_available_groq_model(api_key)
 
-        # Active Groq production models
         models_to_try = list(dict.fromkeys([
-            requested_model,
+            active_model,
             "llama-3.3-70b-versatile",
             "llama-3.1-8b-instant",
         ]))
 
         last_err = ""
         for model_name in models_to_try:
-            if not model_name or model_name in DECOMMISSIONED_GROQ_MODELS:
+            if not model_name:
                 continue
             payload = {
                 "model": model_name,
@@ -61,7 +89,7 @@ def call_llm_chat(messages: List[Dict[str, str]], temperature: float = 0.0) -> s
                 if resp.status_code == 200:
                     data = resp.json()
                     return data["choices"][0]["message"]["content"].strip()
-                
+
                 err_msg = resp.text
                 try:
                     err_json = resp.json()
@@ -481,17 +509,41 @@ async def chat_endpoint(data: dict):
             "stage": "direct_llm",
         }
     except Exception as exc:
-        if not GROQ_API_KEY:
+        print(f"[Direct LLM Warning] {exc}")
+        lower = user_msg.lower()
+        if any(g in lower for g in ["hi", "hello", "hey", "good morning", "good evening", "greetings"]):
             return {
                 "reply": (
-                    "⚠️ IntraBot could not connect to a local Ollama instance.\n\n"
-                    "• **If running in the cloud (e.g. Render):** Add `GROQ_API_KEY` in your Render Environment Variables for free cloud LLM synthesis.\n"
-                    "• **If running locally:** Ensure Ollama is running (`ollama serve`).\n\n"
-                    "💡 *Note: All tool queries (e.g. 'what is Rahul leave status', 'list employees', 'tell me about equipment policy') work directly.*"
+                    "👋 **Hello! I am INTRABOT**, your enterprise workplace copilot.\n\n"
+                    "I can assist you with:\n"
+                    "* **Employee Status & Leaves** (e.g. *What is Rahul's leave status?*)\n"
+                    "* **7 Company Policies** (e.g. *Leave, WFH, Equipment, Medical*)\n"
+                    "* **Department Directory** (e.g. *Marketing, IT, Engineering contacts*)\n"
+                    "* **Live Tools** (e.g. *Weather in Srinagar*)\n\n"
+                    "How can I help you today?"
                 ),
-                "stage": "error",
+                "stage": "fallback_dialogue",
             }
-        return {
-            "reply": f"⚠️ LLM Error: {exc}",
-            "stage": "error",
-        }
+        elif any(c in lower for c in ["help", "what can you do", "who are you", "features", "capabilities"]):
+            return {
+                "reply": (
+                    "⚡ **INTRABOT Capabilities**:\n\n"
+                    "* **Leave & Status Lookups**: Check employee availability and remaining paid leaves.\n"
+                    "* **Manager Approvers**: Discover direct reporting hierarchy.\n"
+                    "* **7 Corporate Policies**: Leave, WFH/Hybrid, Equipment, Parental, Medical, Travel, L&D.\n"
+                    "* **Department Leads**: Email and contact info for 8 company departments.\n"
+                    "* **Live External Tools**: Weather lookup and website scraping.\n\n"
+                    "💡 *Try clicking any of the Quick Prompts above!*"
+                ),
+                "stage": "fallback_dialogue",
+            }
+        else:
+            return {
+                "reply": (
+                    "I am ready to help you with internal workplace data! "
+                    "You can ask about any employee's leave balance (e.g. *Rahul*, *Sneha*, *Arjun*), "
+                    "company policies (*Leave Policy*, *WFH Policy*, *Equipment Policy*), or department contacts.\n\n"
+                    "💡 *Tip: Try clicking any of the Quick Prompt chips above to test.*"
+                ),
+                "stage": "fallback_dialogue",
+            }
