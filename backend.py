@@ -432,6 +432,43 @@ async def serve_index():
     return FileResponse("static/index.html")
 
 
+@app.get("/api/test-llm")
+def test_llm_endpoint():
+    """Diagnostic endpoint to test live Groq / LLM connectivity."""
+    api_key = (GROQ_API_KEY or "").strip().strip('"').strip("'")
+    if not api_key:
+        return {"status": "no_key", "message": "GROQ_API_KEY is not set"}
+    import requests
+    headers = {"Authorization": f"Bearer {api_key}", "User-Agent": "IntraBot/2.0"}
+    try:
+        models_resp = requests.get("https://api.groq.com/openai/v1/models", headers=headers, timeout=10)
+        models_data = models_resp.json() if models_resp.status_code == 200 else models_resp.text
+    except Exception as e:
+        models_data = str(e)
+        models_resp = None
+
+    try:
+        chat_resp = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json", "User-Agent": "IntraBot/2.0"},
+            json={"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": "hello"}]},
+            timeout=10,
+        )
+        chat_data = chat_resp.json() if chat_resp.status_code == 200 else chat_resp.text
+    except Exception as e:
+        chat_data = str(e)
+        chat_resp = None
+
+    return {
+        "key_prefix": api_key[:8] + "...",
+        "key_length": len(api_key),
+        "models_status": getattr(models_resp, "status_code", None),
+        "models_data": models_data,
+        "chat_status": getattr(chat_resp, "status_code", None),
+        "chat_data": chat_data,
+    }
+
+
 @app.get("/api/info")
 async def get_system_info():
     """Return live system details for UI status badges."""
