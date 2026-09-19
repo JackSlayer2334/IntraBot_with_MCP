@@ -20,8 +20,9 @@ GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 
 ollama_client = ollama.Client(host=OLLAMA_BASE_URL)
 
+
 def call_llm_chat(messages: List[Dict[str, str]], temperature: float = 0.0) -> str:
-    """Unified LLM caller supporting both local Ollama and free cloud Groq API."""
+    """Unified LLM caller supporting both free cloud Groq API and local Ollama."""
     if GROQ_API_KEY:
         import requests
         headers = {
@@ -37,7 +38,7 @@ def call_llm_chat(messages: List[Dict[str, str]], temperature: float = 0.0) -> s
             "https://api.groq.com/openai/v1/chat/completions",
             headers=headers,
             json=payload,
-            timeout=30,
+            timeout=25,
         )
         resp.raise_for_status()
         return resp.json()["choices"][0]["message"]["content"].strip()
@@ -50,6 +51,7 @@ def call_llm_chat(messages: List[Dict[str, str]], temperature: float = 0.0) -> s
     )
     return resp.get("message", {}).get("content", "").strip()
 
+
 app = FastAPI(title="IntraBot Enterprise API", version="2.0.0")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -61,6 +63,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Auto-seed database on startup (critical for cloud deploys where app.db doesn't exist)
+@app.on_event("startup")
+async def startup_event():
+    try:
+        db = get_db()
+        db.init_db()
+        print("[INTRABOT] Database initialized and seeded successfully.")
+    except Exception as e:
+        print(f"[INTRABOT] DB startup warning: {e}")
 
 # In-memory cache for dynamically discovered tools
 CACHED_MCP_TOOLS: List[Dict[str, Any]] = []
@@ -130,7 +142,7 @@ def normalize_tool_result(result: Any) -> Any:
 # Stage 1: Expose Tools & Decide Tool Call
 # ---------------------------------------------------------
 def fallback_heuristic_tool_matching(message: str) -> Optional[Tuple[str, dict]]:
-    """Safe fallback matching in case the local LLM doesn't output valid JSON."""
+    """Safe fallback matching in case the LLM is unreachable or returns non-JSON."""
     lower = message.strip().lower()
 
     if any(w in lower for w in ["weather", "temperature", "forecast", "temp"]):
@@ -164,7 +176,7 @@ def fallback_heuristic_tool_matching(message: str) -> Optional[Tuple[str, dict]]
         "monitor": "Equipment Policy",
     }
     for kw, pol_name in policy_keywords.items():
-        if kw in lower and ("policy" in lower or kw in ["wfh", "work from home", "insurance"]):
+        if kw in lower and ("policy" in lower or kw in ["wfh", "work from home", "insurance", "laptop", "macbook", "equipment"]):
             return "get_policy", {"policy_name": pol_name}
 
     if any(k in lower for k in ["list employees", "all employees", "who works", "show employees", "directory", "team members"]):
@@ -219,7 +231,7 @@ def fallback_heuristic_tool_matching(message: str) -> Optional[Tuple[str, dict]]
 
 async def stage_1_decide_tool(user_message: str, tools: List[Dict[str, Any]]) -> Optional[Tuple[str, dict]]:
     """
-    Stage 1: Expose dynamically discovered MCP tools to Ollama to decide
+    Stage 1: Expose dynamically discovered MCP tools to the LLM to decide
     whether a tool call is required and extract function arguments.
     """
     tools_spec = []
@@ -244,21 +256,17 @@ async def stage_1_decide_tool(user_message: str, tools: List[Dict[str, Any]]) ->
 
     try:
         loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(
+        content = await loop.run_in_executor(
             None,
-            lambda: ollama_client.chat(
-                model=OLLAMA_MODEL,
-                messages=[
+            lambda: call_llm_chat(
+                [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message},
                 ],
-                stream=False,
-                options={"temperature": 0.0},
+                temperature=0.0,
             )
         )
-        content = response.get("message", {}).get("content", "").strip()
 
-        # Extract JSON from response
         match = re.search(r"\{.*\}", content, re.DOTALL)
         if match:
             data = json.loads(match.group(0))
@@ -269,9 +277,9 @@ async def stage_1_decide_tool(user_message: str, tools: List[Dict[str, Any]]) ->
             elif tool_name is None:
                 return None
     except Exception as e:
-        print(f"[Stage 1] Ollama tool routing notice: {e}")
+        print(f"[Stage 1] LLM tool routing fallback: {e}")
 
-    # Fallback to pattern matching if LLM output was indeterminate
+    # Fallback to heuristic pattern matching if LLM was unavailable or returned non-JSON
     return fallback_heuristic_tool_matching(user_message)
 
 
@@ -281,7 +289,7 @@ async def stage_1_decide_tool(user_message: str, tools: List[Dict[str, Any]]) ->
 async def stage_2_synthesize_response(user_message: str, tool_name: str, tool_result: Any) -> str:
     """
     Stage 2: Pass the user question and real tool execution data back
-    into Ollama to synthesize a friendly, context-aware markdown response.
+    into the LLM to synthesize a friendly, context-aware markdown response.
     """
     synthesis_prompt = (
         "You are IntraBot, an intelligent and polite enterprise AI assistant.\n"
@@ -295,19 +303,17 @@ async def stage_2_synthesize_response(user_message: str, tool_name: str, tool_re
 
     try:
         loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(
+        reply = await loop.run_in_executor(
             None,
-            lambda: ollama_client.chat(
-                model=OLLAMA_MODEL,
-                messages=[
+            lambda: call_llm_chat(
+                [
                     {"role": "system", "content": "You are IntraBot, an enterprise HR and workplace copilot."},
                     {"role": "user", "content": synthesis_prompt},
                 ],
-                stream=False,
-                options={"temperature": 0.2},
+                temperature=0.2,
             )
         )
-        return response.get("message", {}).get("content", "").strip()
+        return reply
     except Exception as e:
         print(f"[Stage 2] Synthesis fallback due to: {e}")
         return format_fallback_markdown(tool_name, tool_result)
@@ -371,10 +377,11 @@ async def serve_index():
 async def get_system_info():
     """Return live system details for UI status badges."""
     tools = await discover_mcp_tools()
+    active_model = f"Groq ({GROQ_MODEL})" if GROQ_API_KEY else OLLAMA_MODEL
     return {
         "status": "online",
-        "model": OLLAMA_MODEL,
-        "ollama_url": OLLAMA_BASE_URL,
+        "model": active_model,
+        "ollama_url": "Groq Cloud API" if GROQ_API_KEY else OLLAMA_BASE_URL,
         "mcp_server": MCP_SERVER_URL,
         "db_backend": DB_BACKEND.upper(),
         "tools_count": len(tools),
@@ -422,11 +429,10 @@ async def chat_endpoint(data: dict):
     # Direct LLM Conversation (No tool needed)
     try:
         loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(
+        reply = await loop.run_in_executor(
             None,
-            lambda: ollama_client.chat(
-                model=OLLAMA_MODEL,
-                messages=[
+            lambda: call_llm_chat(
+                [
                     {
                         "role": "system",
                         "content": (
@@ -436,15 +442,25 @@ async def chat_endpoint(data: dict):
                     },
                     {"role": "user", "content": user_msg},
                 ],
-                stream=False,
+                temperature=0.7,
             )
         )
         return {
-            "reply": response.get("message", {}).get("content", ""),
+            "reply": reply,
             "stage": "direct_llm",
         }
     except Exception as exc:
+        if not GROQ_API_KEY:
+            return {
+                "reply": (
+                    "⚠️ IntraBot could not connect to a local Ollama instance.\n\n"
+                    "• **If running in the cloud (e.g. Render):** Add `GROQ_API_KEY` in your Render Environment Variables for free cloud LLM synthesis.\n"
+                    "• **If running locally:** Ensure Ollama is running (`ollama serve`).\n\n"
+                    "💡 *Note: All tool queries (e.g. 'what is Rahul leave status', 'list employees', 'tell me about equipment policy') work directly.*"
+                ),
+                "stage": "error",
+            }
         return {
-            "reply": f"⚠️ Could not reach Ollama model `{OLLAMA_MODEL}`: {exc}",
+            "reply": f"⚠️ LLM Error: {exc}",
             "stage": "error",
         }

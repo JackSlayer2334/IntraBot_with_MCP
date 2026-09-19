@@ -42,6 +42,7 @@ IntraBot_with_MCP/
 ## ⚡ Quick Start (Local)
 
 ### 1. Requirements
+
 - Python 3.10+
 - [Ollama](https://ollama.com) running locally with `gemma2:2b` pulled:
   ```bash
@@ -50,6 +51,7 @@ IntraBot_with_MCP/
   ```
 
 ### 2. Install Dependencies
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
@@ -57,21 +59,25 @@ pip install -r requirements.txt
 ```
 
 ### 3. Seed the Database
+
 ```bash
 python sample_db.py
 ```
 
 ### 4. Start the FastMCP Server (Port 8080)
+
 ```bash
 python mcp_server.py
 ```
 
 ### 5. Start the FastAPI Backend (Port 8000)
+
 ```bash
 uvicorn backend:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### 6. Open in Browser
+
 👉 **http://localhost:8000**
 
 ---
@@ -118,12 +124,15 @@ FastAPI Backend (backend.py :8000)
 ## 📊 Included Demo Data
 
 ### 👥 12 Employees (8 Departments)
+
 Suresh, Rahul, Priya, Arjun, Ayush, Neha, Rohan, Ananya, Vikram, Tanya, Rohit, Sneha
 
 ### 📜 7 Company Policies
+
 Leave Policy, WFH Policy, Medical Policy, Travel Policy, Parental Leave Policy, Learning & Development Policy, Equipment Policy
 
 ### 🏢 8 Departments
+
 Engineering, HR, IT, Marketing, Finance, Design, Sales, Product
 
 ---
@@ -143,16 +152,16 @@ what is temp in srinagar today
 
 ## 🔧 Environment Variables
 
-| Variable | Default | Description |
-|---|---|---|
-| `OLLAMA_MODEL` | `gemma2:2b` | Local Ollama model to use |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL |
-| `GROQ_API_KEY` | *(unset)* | Groq cloud API key (overrides Ollama when set) |
-| `GROQ_MODEL` | `llama-3.1-8b-instant` | Groq model to use |
-| `MCP_SERVER_URL` | `http://127.0.0.1:8080/mcp` | FastMCP server URL |
-| `MCP_PORT` | `8080` | FastMCP server port |
-| `DB_BACKEND` | `sqlite` | Storage backend: `sqlite` or `mysql` |
-| `WEATHER_API_KEY` | *(unset)* | Optional OpenWeatherMap key |
+| Variable          | Default                     | Description                                    |
+| ----------------- | --------------------------- | ---------------------------------------------- |
+| `OLLAMA_MODEL`    | `gemma2:2b`                 | Local Ollama model to use                      |
+| `OLLAMA_BASE_URL` | `http://localhost:11434`    | Ollama server URL                              |
+| `GROQ_API_KEY`    | _(unset)_                   | Groq cloud API key (overrides Ollama when set) |
+| `GROQ_MODEL`      | `llama-3.1-8b-instant`      | Groq model to use                              |
+| `MCP_SERVER_URL`  | `http://127.0.0.1:8080/mcp` | FastMCP server URL                             |
+| `MCP_PORT`        | `8080`                      | FastMCP server port                            |
+| `DB_BACKEND`      | `sqlite`                    | Storage backend: `sqlite` or `mysql`           |
+| `WEATHER_API_KEY` | _(unset)_                   | Optional OpenWeatherMap key                    |
 
 ---
 
