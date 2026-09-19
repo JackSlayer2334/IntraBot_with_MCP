@@ -16,10 +16,11 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://127.0.0.1:8080/mcp")
 DB_BACKEND = os.getenv("DB_BACKEND", "sqlite")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 ollama_client = ollama.Client(host=OLLAMA_BASE_URL)
 
+DECOMMISSIONED_GROQ_MODELS = {"gemma2-9b-it", "llama3-8b-8192", "llama3-70b-8192", "gemma-7b-it"}
 
 def call_llm_chat(messages: List[Dict[str, str]], temperature: float = 0.0) -> str:
     """Unified LLM caller supporting both free cloud Groq API and local Ollama."""
@@ -30,17 +31,20 @@ def call_llm_chat(messages: List[Dict[str, str]], temperature: float = 0.0) -> s
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
-        # Fallback models in case a specific Groq model name is deprecated or 404s
+        requested_model = GROQ_MODEL.strip().strip('"').strip("'")
+        if requested_model in DECOMMISSIONED_GROQ_MODELS:
+            requested_model = "llama-3.3-70b-versatile"
+
+        # Active Groq production models
         models_to_try = list(dict.fromkeys([
-            GROQ_MODEL.strip().strip('"').strip("'"),
+            requested_model,
             "llama-3.3-70b-versatile",
             "llama-3.1-8b-instant",
-            "gemma2-9b-it",
         ]))
 
         last_err = ""
         for model_name in models_to_try:
-            if not model_name:
+            if not model_name or model_name in DECOMMISSIONED_GROQ_MODELS:
                 continue
             payload = {
                 "model": model_name,
