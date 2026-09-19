@@ -25,3 +25,7 @@ app.db
 .env
 .idea/
 .vscode/
+
+# Private architecture docs (kept local only)
+ARCHITECTURE.md
+
